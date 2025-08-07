@@ -1,0 +1,158 @@
+ZTEST BAPI OUR CUSTOM PROGRSAM TO ISSUE OR TRANSFER GOODS
+
+*&amp;---------------------------------------------------------------------*
+*&amp; Report ZTEST_BAPI
+*&amp;---------------------------------------------------------------------*
+*&amp;
+*&amp;---------------------------------------------------------------------*
+REPORT ZTEST_BAPI.
+Tables : MSEG.
+DATA: wa_header TYPE bapi2017_gm_head_01,
+      wa_item TYPE   bapi2017_gm_item_create,
+      it_table TYPE TABLE OF bapi2017_gm_item_create,
+      wa_return TYPE bapiret2,
+      it_return TYPE TABLE OF bapiret2,
+      lv_mat_doc TYPE bapi2017_gm_head_ret-mat_doc,
+      lv_year TYPE bapi2017_gm_head_ret-doc_year,
+      gm_code TYPE bapi2017_GM_CODE.
+
+SELECTION-SCREEN : BEGIN OF BLOCK a WITH FRAME TITLE TEXT-001.
+  PARAMETERS : transfer RADIOBUTTON GROUP g1 USER-COMMAND TEST DEFAULT &#39;X&#39;,
+               consume  RADIOBUTTON GROUP g1.
+  SELECTION-SCREEN : END OF BLOCK a.
+
+  SELECTION-SCREEN : BEGIN OF BLOCK b WITH FRAME TITLE TEXT-001.
+PARAMETERS :
+    p_date TYPE DATS MODIF ID T ,
+             d_date TYPE DATS MODIF ID T,
+             d_no TYPE Mseg-matnr MODIF ID T,
+             plant(4) TYPE C MODIF ID T,
+             quantity TYPE mseg-menge MODIF ID T,
+             s_loc(4) TYPE C MODIF ID T,
+             m_loc(4) TYPE C MODIF ID T.
+SELECTION-SCREEN : END OF BLOCK b.
+
+  SELECTION-SCREEN : BEGIN OF BLOCK c WITH FRAME TITLE TEXT-001.
+PARAMETERS :
+             c_date TYPE DATS MODIF ID C,
+             cd_date TYPE DATS MODIF ID C ,
+              C_no TYPE Mseg-matnr MODIF ID C,
+             Cplant(4) TYPE C MODIF ID C,
+             Cquant TYPE mseg-menge MODIF ID C,
+             Cs_loc(4) TYPE C MODIF ID C.
+SELECTION-SCREEN : END OF BLOCK c.
+
+AT SELECTION-SCREEN OUTPUT .
+  IF transfer = &#39;X&#39;.
+    LOOP AT SCREEN .
+      CHECK SCREEN-GROUP1 = &#39;C&#39;  .
+      SCREEN-ACTIVE = 0.
+      MODIFY SCREEN.
+    ENDLOOP.
+    ELSE.
+       LOOP AT SCREEN .
+      CHECK SCREEN-GROUP1 = &#39;T&#39;  .
+      SCREEN-ACTIVE = 0.
+      MODIFY SCREEN.
+    ENDLOOP.
+ENDIF.
+START-OF-SELECTION.
+IF transfer = &#39;X&#39;.
+  PERFORM TRANSFER.
+ELSE.
+  PERFORM CONSUME.
+ENDIF.
+FORM TRANSFER.
+wa_header-pstng_date = p_date.
+wa_header-doc_date = d_date.
+
+gm_code-gm_code = &#39;04&#39;.
+wa_item-material = d_no.
+wa_item-plant = plant.
+wa_item-stge_loc = s_loc.
+wa_item-move_type = &#39;311&#39;.
+wa_item-MOVE_STLOC = m_loc.
+wa_item-entry_qnt = quantity.
+wa_item-ENTRY_UOM = &#39;NOS&#39;.
+APPEND wa_item TO it_table.
+CALL FUNCTION &#39;BAPI_GOODSMVT_CREATE&#39;
+EXPORTING
+  goodsmvt_header = wa_header
+  goodsmvt_code = gm_code
+IMPORTING
+   materialdocument =  lv_mat_doc
+   matdocumentyear =    lv_year
+
+   TABLES
+     goodsmvt_item = it_table
+     return = it_return.
+
+IF sy-subrc = 0.
+*  WRITE: &#39;SUCESS&#39;.
+  CALL FUNCTION &#39;BAPI_TRANSACTION_COMMIT&#39;
+  EXPORTING
+    wait = &#39;X&#39;.
+*  WRITE: &#39;SUCCESS&#39;.
+   LOOP AT it_return INTO wa_return.
+   WRITE :/ &#39;TYPE &#39; , wa_return-type,
+            / &#39;ID:&#39; , wa_return-id,
+           / &#39;NUMBER&#39; , wa_return-number,
+           / &#39;MESSAGE&#39; , wa_return-message,
+           / &#39;PARAMETER&#39; , wa_return-parameter,
+           / &#39;FIELD&#39; , wa_return-field,
+           / &#39;ROW: &#39; ,  wa_return-row.
+   ENDLOOP.
+   WRITE : &#39;success&#39;.
+  ELSE.
+     WRITE: &#39;FAIL&#39;.
+    CALL FUNCTION &#39;BAPI_TRANSACTION_ROLLBACK&#39;.
+ WRITE: &#39;FAIL&#39;.
+ENDIF.
+ENDFORM.
+
+FORM CONSUME.
+  wa_header-pstng_date = c_date.
+wa_header-doc_date = cd_date.
+
+gm_code-gm_code = &#39;03&#39;.
+wa_item-material = C_no.
+wa_item-plant = Cplant.
+wa_item-stge_loc = Cs_loc.
+wa_item-move_type = &#39;201&#39;.
+*wa_item-MOVE_STLOC = m_loc.
+wa_item-entry_qnt = Cquant.
+*wa_item-ENTRY_UOM = &#39;NOS&#39;.
+APPEND wa_item TO it_table.
+CALL FUNCTION &#39;BAPI_GOODSMVT_CREATE&#39;
+EXPORTING
+
+  goodsmvt_header = wa_header
+  goodsmvt_code = gm_code
+IMPORTING
+   materialdocument =  lv_mat_doc
+   matdocumentyear =    lv_year
+   TABLES
+     goodsmvt_item = it_table
+     return = it_return.
+
+IF sy-subrc = 0.
+*WRITE &#39;SUCCESS&#39;.
+  CALL FUNCTION &#39;BAPI_TRANSACTION_COMMIT&#39;
+  EXPORTING
+    wait = &#39;X&#39;.
+ LOOP AT it_return INTO wa_return.
+   WRITE :/ &#39;TYPE &#39; , wa_return-type,
+            / &#39;ID:&#39; , wa_return-id,
+           / &#39;NUMBER&#39; , wa_return-number,
+           / &#39;MESSAGE&#39; , wa_return-message,
+           / &#39;PARAMETER&#39; , wa_return-parameter,
+           / &#39;FIELD&#39; , wa_return-field,
+           / &#39;ROW: &#39; ,  wa_return-row.
+   ENDLOOP.
+    WRITE : &#39;success&#39;.
+  ELSE.
+WRITE &#39;FAIL&#39;.
+    CALL FUNCTION &#39;BAPI_TRANSACTION_ROLLBACK&#39;.
+ENDIF.
+
+ENDFORM.

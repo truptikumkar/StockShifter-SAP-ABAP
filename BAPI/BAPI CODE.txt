@@ -1,0 +1,26 @@
+BAPI
+
+FUNCTION BAPI_TRANSACTION_COMMIT.
+*&quot;----------------------------------------------------------------------
+*&quot;*&quot;Lokale Schnittstelle:
+*&quot;       IMPORTING
+*&quot;             VALUE(WAIT) LIKE  BAPITA-WAIT OPTIONAL
+*&quot;       EXPORTING
+*&quot;             VALUE(RETURN) LIKE  BAPIRET2 STRUCTURE  BAPIRET2
+*&quot;----------------------------------------------------------------------
+IF WAIT EQ SPACE.
+  COMMIT WORK.
+ELSE.
+  COMMIT WORK AND WAIT.
+  IF SY-SUBRC NE 0.
+    CALL FUNCTION &#39;BALW_BAPIRETURN_GET2&#39;
+         EXPORTING
+              TYPE       = &#39;E&#39;
+              CL         = &#39;S&amp;&#39;
+              NUMBER     = &#39;150&#39;
+         IMPORTING
+              RETURN     = RETURN.
+  ENDIF.
+ENDIF.
+CALL FUNCTION &#39;BUFFER_REFRESH_ALL&#39;.
+ENDFUNCTION.
